@@ -5,17 +5,19 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Select, SelectItem } from "@/components/ui/select";
-import Navbar from "@/components/navbar";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/components/ui/use-toast";
+import Navbar from "@/components/navbar";
+import { ShoppingCart } from "lucide-react";
+import { useAuth } from "@/hooks/use-auth";
 
 export default function ProductsPage() {
   const router = useRouter();
   const { toast } = useToast();
+  const { user } = useAuth();
+  const [searchQuery, setSearchQuery] = useState("");
   const [products, setProducts] = useState([]);
-  const [sortOption, setSortOption] = useState("name");
-  const [category, setCategory] = useState("all");
+  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     fetchProducts();
@@ -43,50 +45,64 @@ export default function ProductsPage() {
     }
   };
 
-  const sortedProducts = [...products].sort((a, b) => {
-    if (sortOption === "price") return a.price - b.price;
-    if (sortOption === "stock") return b.stock - a.stock;
-    return a.name.localeCompare(b.name);
-  });
+  const handlePurchase = (productId) => {
+    if (!user) {
+      toast({
+        variant: "destructive",
+        title: "Lỗi",
+        description: "Vui lòng đăng nhập để mua hàng",
+      });
+      router.push("/login");
+      return;
+    }
+    router.push(`/product/${productId}`);
+  };
 
-  const filteredProducts = category === "all" ? sortedProducts : sortedProducts.filter(p => p.category === category);
+  const filteredProducts = products.filter((product) =>
+    product.name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   return (
     <div className="min-h-screen flex flex-col">
       <Navbar />
-
-      <main className="container mx-auto px-4 py-8">
+      <main className="flex-1 container mx-auto px-4 py-8">
         <h1 className="text-3xl font-bold mb-6">Danh sách sản phẩm</h1>
 
-        <div className="flex justify-between mb-4">
-          <Select onValueChange={setCategory} value={category}>
-            <SelectItem value="all">Tất cả</SelectItem>
-            <SelectItem value="electronics">Điện tử</SelectItem>
-            <SelectItem value="fashion">Thời trang</SelectItem>
-            <SelectItem value="home">Gia dụng</SelectItem>
-          </Select>
-
-          <Select onValueChange={setSortOption} value={sortOption}>
-            <SelectItem value="name">Sắp xếp theo tên</SelectItem>
-            <SelectItem value="price">Sắp xếp theo giá</SelectItem>
-            <SelectItem value="stock">Sắp xếp theo số lượng</SelectItem>
-          </Select>
+        <div className="mb-6">
+          <Label htmlFor="search">Tìm kiếm sản phẩm</Label>
+          <Input
+            id="search"
+            placeholder="Nhập tên sản phẩm..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-          {filteredProducts.map((product) => (
-            <Card key={product.id}>
-              <CardHeader>
-                <CardTitle>{product.name}</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <img src={product.image} alt={product.name} className="w-full h-40 object-cover" />
-                <p className="text-lg font-semibold mt-2">{product.price.toLocaleString()} đ</p>
-                <p className="text-sm text-gray-600">Còn lại: {product.stock}</p>
-                <Button className="mt-2 w-full">Mua ngay</Button>
-              </CardContent>
-            </Card>
-          ))}
+        <div className="space-y-4">
+          {filteredProducts.length > 0 ? (
+            filteredProducts.map((product) => (
+              <Card key={product.id} className="p-4 flex items-center justify-between">
+                <div className="flex items-center space-x-4">
+                  <img
+                    src={product.image || "/placeholder.svg"}
+                    alt={product.name}
+                    className="w-24 h-24 object-cover rounded-md"
+                  />
+                  <div>
+                    <CardTitle>{product.name}</CardTitle>
+                    <CardDescription>{product.description}</CardDescription>
+                    <p className="text-lg font-semibold text-gray-800">{product.price.toLocaleString()} đ</p>
+                    <p className="text-sm text-gray-500">Còn lại: {product.stock} sản phẩm</p>
+                  </div>
+                </div>
+                <Button onClick={() => handlePurchase(product.id)}>
+                  <ShoppingCart className="mr-2 h-5 w-5" /> Mua ngay
+                </Button>
+              </Card>
+            ))
+          ) : (
+            <p className="text-center text-gray-500">Không tìm thấy sản phẩm nào.</p>
+          )}
         </div>
       </main>
     </div>
